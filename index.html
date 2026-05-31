@@ -1,0 +1,386 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>우리집 보드</title>
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Jua&family=Gowun+Dodum&display=swap" rel="stylesheet">
+
+<style>
+  :root {
+    --bg: #FBF4E9; --card: #FFFFFF; --ink: #3A332B; --ink-soft: #998C7A;
+    --line: #EEE4D3; --accent: #E07856; --accent-dark: #B85A3C;
+    --need-bg: #FBE7D9; --need-fg: #B85A3C;
+    --doing-bg: #DFEDEF; --doing-fg: #3F7A86;
+    --done-bg: #E8EDE0; --done-fg: #6E7D5B;
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  body { margin: 0; background: var(--bg); color: var(--ink); font-family: 'Gowun Dodum', sans-serif; display: flex; justify-content: center; min-height: 100vh; }
+  .app { width: 100%; max-width: 460px; padding: 22px 18px 60px; }
+
+  header { margin-bottom: 22px; }
+  .logo { font-family: 'Jua', sans-serif; font-size: 30px; color: var(--accent); margin: 0; letter-spacing: -0.5px; }
+  .sub { color: var(--ink-soft); font-size: 14px; margin: 4px 0 0; }
+
+  .who { margin-top: 16px; background: #F2E7D5; border-radius: 14px; padding: 4px; display: flex; gap: 4px; }
+  .who button { flex: 1; border: none; background: transparent; font-family: inherit; font-size: 15px; color: var(--ink-soft); padding: 9px 0; border-radius: 11px; cursor: pointer; transition: all .15s; }
+  .who button.on { background: var(--card); color: var(--ink); box-shadow: 0 1px 3px rgba(0,0,0,.07); }
+
+  .section-label { font-size: 14px; color: var(--ink-soft); margin: 26px 4px 10px; }
+  .presets { display: grid; grid-template-columns: repeat(2, 1fr); gap: 9px; }
+  .preset { border: 1px solid var(--line); background: var(--card); border-radius: 14px; padding: 13px 14px; font-family: inherit; font-size: 16px; color: var(--ink); text-align: left; cursor: pointer; transition: transform .08s, border-color .15s; display: flex; align-items: center; gap: 9px; }
+  .preset:active { transform: scale(.96); }
+  .preset:hover { border-color: var(--accent); }
+  .preset .emo { font-size: 19px; }
+
+  .custom-row { display: none; gap: 8px; margin-top: 9px; }
+  .custom-row.show { display: flex; }
+  .custom-row input { flex: 1; border: 1px solid var(--line); background: var(--card); border-radius: 14px; padding: 12px 14px; font-family: inherit; font-size: 16px; color: var(--ink); outline: none; }
+  .custom-row input:focus { border-color: var(--accent); }
+  .custom-row .add { border: none; background: var(--accent); color: #fff; border-radius: 14px; padding: 0 18px; font-family: inherit; font-size: 16px; cursor: pointer; }
+
+  .board-head { display: flex; justify-content: space-between; align-items: center; margin: 30px 4px 12px; }
+  .board-head .t { font-size: 16px; }
+  .board-head .count { color: var(--accent); font-size: 14px; margin-left: 7px; }
+  .refresh { border: none; background: transparent; cursor: pointer; color: var(--ink-soft); font-size: 17px; margin-left: 6px; padding: 2px 5px; }
+  .refresh:active { transform: scale(.9); }
+
+  .sort { display: flex; gap: 2px; background: #F2E7D5; border-radius: 10px; padding: 3px; }
+  .sort button { border: none; background: transparent; font-family: inherit; font-size: 13px; color: var(--ink-soft); padding: 6px 11px; border-radius: 8px; cursor: pointer; }
+  .sort button.on { background: var(--card); color: var(--ink); box-shadow: 0 1px 2px rgba(0,0,0,.06); }
+
+  /* 연결 상태 / 에러 안내 줄 */
+  .status { display: none; font-size: 13px; color: var(--ink-soft); margin: 0 4px 12px; padding: 9px 13px; background: #F2E7D5; border-radius: 10px; }
+  .status.err { background: #FBE2DE; color: #C0493C; }
+
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 16px; padding: 14px 16px; margin-bottom: 10px; display: flex; align-items: center; justify-content: space-between; gap: 10px; animation: pop .2s ease; }
+  @keyframes pop { from { opacity: 0; transform: translateY(-6px); } }
+  .card.done { opacity: .55; }
+  .card .item { font-size: 17px; }
+  .card.done .item { text-decoration: line-through; }
+  .card .meta { font-size: 13px; color: var(--ink-soft); margin-top: 3px; }
+
+  .badge { display: inline-block; font-size: 12px; padding: 2px 9px; border-radius: 8px; margin-left: 7px; vertical-align: 1px; }
+  .badge.need { background: var(--need-bg); color: var(--need-fg); }
+  .badge.doing { background: var(--doing-bg); color: var(--doing-fg); }
+  .badge.done { background: var(--done-bg); color: var(--done-fg); }
+
+  .deadline { display: inline-block; font-size: 12px; margin-top: 7px; padding: 3px 10px; border-radius: 8px; background: #F4E8D2; color: #9A7B3E; }
+  .deadline.over { background: #FBE2DE; color: #C0493C; }
+
+  .actions { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
+  .btn { border: 1px solid var(--line); background: var(--card); font-family: inherit; font-size: 14px; color: var(--ink); padding: 8px 13px; border-radius: 11px; cursor: pointer; transition: transform .08s; }
+  .btn:active { transform: scale(.95); }
+  .btn.claim { background: var(--accent); color: #fff; border-color: var(--accent); }
+  .btn.done-btn { color: var(--doing-fg); border-color: var(--doing-bg); }
+  .btn.icon { width: 34px; padding: 0; height: 34px; color: var(--ink-soft); font-size: 16px; line-height: 1; }
+
+  .card.editing { align-items: stretch; }
+  .edit-form { width: 100%; display: flex; flex-direction: column; gap: 10px; }
+  .edit-form .edit-item { border: 1px solid var(--line); border-radius: 11px; padding: 11px 13px; font-family: inherit; font-size: 16px; color: var(--ink); outline: none; background: var(--card); }
+  .edit-form .edit-item:focus { border-color: var(--accent); }
+  .edit-line { display: flex; align-items: center; gap: 9px; font-size: 14px; color: var(--ink-soft); }
+  .edit-line input[type=date] { flex: 1; border: 1px solid var(--line); border-radius: 11px; padding: 9px 11px; font-family: inherit; font-size: 15px; color: var(--ink); outline: none; background: var(--card); }
+  .edit-line input[type=date]:focus { border-color: var(--accent); }
+  .edit-actions { display: flex; gap: 8px; justify-content: flex-end; }
+  .hint { font-size: 12px; color: var(--ink-soft); }
+
+  .empty { text-align: center; color: var(--ink-soft); padding: 36px 0; font-size: 15px; }
+</style>
+</head>
+<body>
+<div class="app">
+
+  <header>
+    <h1 class="logo">우리집 보드</h1>
+    <p class="sub">버튼으로 부탁하고, 버튼으로 끝내요</p>
+    <div class="who">
+      <button data-user="와이프" class="on">🙋‍♀️ 와이프</button>
+      <button data-user="남편">🙋‍♂️ 남편</button>
+    </div>
+  </header>
+
+  <p class="section-label">자주 쓰는 요청 (누르면 보드에 올라가요)</p>
+  <div class="presets">
+    <button class="preset" data-item="우유"><span class="emo">🥛</span>우유</button>
+    <button class="preset" data-item="빵"><span class="emo">🍞</span>빵</button>
+    <button class="preset" data-item="계란"><span class="emo">🥚</span>계란</button>
+    <button class="preset" data-item="휴지"><span class="emo">🧻</span>휴지</button>
+    <button class="preset" data-item="쓰레기 버리기"><span class="emo">🗑️</span>쓰레기</button>
+    <button class="preset" id="customToggle"><span class="emo">✏️</span>직접 입력</button>
+  </div>
+  <div class="custom-row" id="customRow">
+    <input id="customInput" type="text" placeholder="무엇이 필요한가요?" maxlength="20">
+    <button class="add" id="customAdd">추가</button>
+  </div>
+
+  <div class="board-head">
+    <div>
+      <span class="t">요청 목록</span><span class="count" id="count"></span>
+      <button class="refresh" id="refreshBtn" aria-label="새로고침">↻</button>
+    </div>
+    <div class="sort">
+      <button data-sort="time" class="on">요청순</button>
+      <button data-sort="deadline">기한순</button>
+    </div>
+  </div>
+
+  <div class="status" id="status"></div>
+  <div id="board"></div>
+
+</div>
+
+<!-- Supabase 라이브러리 불러오기 (이게 먼저 로드돼야 함) -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+<script>
+  /* =========================================================
+     0) Supabase 연결 설정
+        - 아래 두 값은 본인 프로젝트의 것. publishable 키는 공개용이라 코드에 둬도 됨.
+     ========================================================= */
+  const SUPABASE_URL = 'https://lxhcefdyalvbvxaanczh.supabase.co';
+  const SUPABASE_KEY = 'sb_publishable_O7KR_wRO43vb_MKaiPsNsQ_lIhwYyN0';
+
+  // 위 라이브러리가 만든 전역 supabase 로 클라이언트(=데이터베이스 연결창구) 생성
+  const db = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+  /* =========================================================
+     1) 상태값
+        이제 requests 는 '진짜 데이터'가 아니라, 데이터베이스에서 읽어와
+        화면에 보여주려고 잠깐 담아두는 복사본이다. 진짜는 Supabase 에 있음.
+     ========================================================= */
+  let requests = [];
+  let currentUser = '와이프';
+  let editingId = null;
+  let sortMode = 'time';
+
+  const board = document.getElementById('board');
+  const countEl = document.getElementById('count');
+
+  /* =========================================================
+     2) Supabase 와 주고받는 동작들 (CRUD)
+        모든 동작은 (1) DB 에 보내고 → (2) 다시 읽어와 화면을 새로 그린다.
+     ========================================================= */
+
+  // R: 전체 목록 읽어오기
+  async function loadRequests() {
+    showStatus('불러오는 중…');
+    const { data, error } = await db.from('requests').select('*');
+    if (error) return showError(error);
+    requests = data.map(fromRow);
+    showStatus('');           // 성공하면 안내줄 숨김
+    render();
+  }
+
+  // C: 새 부탁 올리기 (id, created_at 은 DB 가 자동으로 넣어줌)
+  async function addRequest(item) {
+    const { error } = await db.from('requests').insert({
+      item: item, requester: currentUser, status: '필요해요', assignee: null, deadline: null
+    });
+    if (error) return showError(error);
+    await loadRequests();
+  }
+
+  // U: "내가 할게"
+  async function claimRequest(id) {
+    const { error } = await db.from('requests').update({ status: '내가 맡음', assignee: currentUser }).eq('id', id);
+    if (error) return showError(error);
+    await loadRequests();
+  }
+
+  // U: "완료"
+  async function completeRequest(id) {
+    const { error } = await db.from('requests').update({ status: '완료' }).eq('id', id);
+    if (error) return showError(error);
+    await loadRequests();
+  }
+
+  // U: 수정 (이름 + 기한) — 시작/취소는 화면만 바꾸고, 저장할 때만 DB 로 보냄
+  function editRequest(id) { editingId = id; render(); }
+  function cancelEdit()    { editingId = null; render(); }
+  async function saveEdit(id) {
+    const newItem = document.getElementById('editItem').value.trim();
+    const newDate = document.getElementById('editDate').value;
+    const patch = { deadline: newDate || null };
+    if (newItem) patch.item = newItem;
+    const { error } = await db.from('requests').update(patch).eq('id', id);
+    if (error) return showError(error);
+    editingId = null;
+    await loadRequests();
+  }
+
+  // D: 지우기
+  async function deleteRequest(id) {
+    const { error } = await db.from('requests').delete().eq('id', id);
+    if (error) return showError(error);
+    await loadRequests();
+  }
+
+  // DB 한 줄(row)을 화면이 쓰는 모양으로 변환 (created_at → createdAt 등)
+  function fromRow(row) {
+    return {
+      id: row.id, item: row.item, requester: row.requester,
+      status: row.status, assignee: row.assignee,
+      createdAt: new Date(row.created_at).getTime(),
+      deadline: row.deadline
+    };
+  }
+
+  /* =========================================================
+     3) 화면 그리기 (이 아래는 예전과 거의 같다)
+     ========================================================= */
+  function render() {
+    const active = sortActive(requests.filter(r => r.status !== '완료'));
+    const done   = requests.filter(r => r.status === '완료').sort((a,b) => b.createdAt - a.createdAt);
+    const ordered = [...active, ...done];
+
+    countEl.textContent = active.length > 0 ? `지금 필요한 것 ${active.length}개` : '';
+
+    if (ordered.length === 0) {
+      board.innerHTML = '<div class="empty">아직 올라온 부탁이 없어요 🌿<br>위 버튼을 눌러보세요</div>';
+      return;
+    }
+    board.innerHTML = ordered.map(r => (r.id === editingId ? editHTML(r) : cardHTML(r))).join('');
+  }
+
+  function sortActive(list) {
+    if (sortMode === 'deadline') {
+      return [...list].sort((a, b) => {
+        if (a.deadline && b.deadline) return a.deadline < b.deadline ? -1 : 1;
+        if (a.deadline) return -1;
+        if (b.deadline) return 1;
+        return b.createdAt - a.createdAt;
+      });
+    }
+    return [...list].sort((a, b) => b.createdAt - a.createdAt);
+  }
+
+  function cardHTML(r) {
+    let badge, meta, actionBtns;
+    if (r.status === '필요해요') {
+      badge = '<span class="badge need">필요해요</span>';
+      meta = `${r.requester} · ${fmtDate(r.createdAt)} 요청`;
+      actionBtns = `<button class="btn claim" onclick="claimRequest(${r.id})">내가 할게</button>`;
+    } else if (r.status === '내가 맡음') {
+      badge = '<span class="badge doing">내가 맡음</span>';
+      meta = `${r.assignee}이(가) 가는 중 · ${fmtDate(r.createdAt)} 요청`;
+      actionBtns = `<button class="btn done-btn" onclick="completeRequest(${r.id})">✓ 완료</button>`;
+    } else {
+      badge = '<span class="badge done">완료</span>';
+      meta = `${r.assignee || r.requester}이(가) 처리함 · ${fmtDate(r.createdAt)} 요청`;
+      actionBtns = '';
+    }
+    const editBtn = r.status !== '완료'
+      ? `<button class="btn icon" onclick="editRequest(${r.id})" aria-label="수정">✎</button>` : '';
+    return `
+      <div class="card ${r.status === '완료' ? 'done' : ''}">
+        <div>
+          <span class="item">${r.item}</span>${badge}
+          <div class="meta">${meta}</div>
+          ${deadlineChip(r)}
+        </div>
+        <div class="actions">
+          ${actionBtns}${editBtn}
+          <button class="btn icon" onclick="deleteRequest(${r.id})" aria-label="지우기">×</button>
+        </div>
+      </div>`;
+  }
+
+  function editHTML(r) {
+    return `
+      <div class="card editing">
+        <div class="edit-form">
+          <input class="edit-item" id="editItem" value="${r.item}" maxlength="20">
+          <div class="edit-line">
+            <span>기한</span>
+            <input type="date" id="editDate" value="${r.deadline || ''}">
+          </div>
+          <div class="hint">기한을 비우면 ‘기한 없음’ 으로 저장돼요</div>
+          <div class="edit-actions">
+            <button class="btn" onclick="cancelEdit()">취소</button>
+            <button class="btn claim" onclick="saveEdit(${r.id})">저장</button>
+          </div>
+        </div>
+      </div>`;
+  }
+
+  function deadlineChip(r) {
+    if (!r.deadline) return '';
+    const today = new Date().toISOString().slice(0, 10);
+    const over = r.deadline < today && r.status !== '완료';
+    return `<div class="deadline ${over ? 'over' : ''}">⏰ ${fmtDeadline(r.deadline)}까지${over ? ' (지남)' : ''}</div>`;
+  }
+
+  function fmtDate(t) { const d = new Date(t); return `${d.getMonth() + 1}월 ${d.getDate()}일`; }
+  function fmtDeadline(ds) { const d = new Date(ds + 'T00:00'); return `${d.getMonth() + 1}월 ${d.getDate()}일`; }
+
+  // 연결 상태 / 에러를 화면 위에 보여주기
+  function showStatus(msg) {
+    const el = document.getElementById('status');
+    el.textContent = msg || '';
+    el.className = 'status';
+    el.style.display = msg ? 'block' : 'none';
+  }
+  function showError(error) {
+    const el = document.getElementById('status');
+    el.textContent = '연결 문제: ' + (error.message || error) + '  (표 이름·정책 설정을 확인해보세요)';
+    el.className = 'status err';
+    el.style.display = 'block';
+    console.error(error);
+  }
+
+  /* =========================================================
+     4) 버튼 연결
+     ========================================================= */
+  document.querySelectorAll('.who button').forEach(b => {
+    b.onclick = () => {
+      currentUser = b.dataset.user;
+      document.querySelectorAll('.who button').forEach(x => x.classList.remove('on'));
+      b.classList.add('on');
+    };
+  });
+
+  document.querySelectorAll('.preset[data-item]').forEach(b => {
+    b.onclick = () => addRequest(b.dataset.item);
+  });
+
+  document.querySelectorAll('.sort button').forEach(b => {
+    b.onclick = () => {
+      sortMode = b.dataset.sort;
+      document.querySelectorAll('.sort button').forEach(x => x.classList.remove('on'));
+      b.classList.add('on');
+      render();
+    };
+  });
+
+  document.getElementById('refreshBtn').onclick = loadRequests;
+
+  const customRow = document.getElementById('customRow');
+  document.getElementById('customToggle').onclick = () => {
+    customRow.classList.toggle('show');
+    if (customRow.classList.contains('show')) document.getElementById('customInput').focus();
+  };
+  function addCustom() {
+    const input = document.getElementById('customInput');
+    const v = input.value.trim();
+    if (v) { addRequest(v); input.value = ''; customRow.classList.remove('show'); }
+  }
+  document.getElementById('customAdd').onclick = addCustom;
+  document.getElementById('customInput').addEventListener('keydown', e => { if (e.key === 'Enter') addCustom(); });
+
+  // 첫 실행: 데이터베이스에서 목록 불러오기
+  loadRequests();
+
+  // 실시간 구독: 누군가 requests 표를 바꾸면(추가/수정/삭제) 자동으로 다시 불러온다.
+  // → 와이프가 올리는 순간, 새로고침 없이 남편 화면에도 뜬다.
+  db.channel('requests-changes')
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'requests' }, () => {
+      loadRequests();
+    })
+    .subscribe();
+</script>
+</body>
+</html>
