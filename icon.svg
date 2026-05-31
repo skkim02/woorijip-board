@@ -1,0 +1,33 @@
+<svg width="512" height="512" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg">
+  <!-- 우리집 보드 아이콘: 테라코타 배경 + 흰색 체크리스트 보드 -->
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#E8835F"/>
+      <stop offset="1" stop-color="#D56A47"/>
+    </linearGradient>
+  </defs>
+
+  <!-- 배경 (iOS가 모서리를 자동으로 둥글게 처리) -->
+  <rect width="512" height="512" fill="url(#bg)"/>
+
+  <!-- 흰색 보드 카드 -->
+  <rect x="116" y="92" width="280" height="328" rx="34" fill="#FFFFFF"/>
+
+  <!-- 보드 상단 클립 -->
+  <rect x="226" y="70" width="60" height="38" rx="14" fill="#FBE7D9"/>
+  <rect x="240" y="62" width="32" height="26" rx="10" fill="#B85A3C"/>
+
+  <!-- 1행: 체크된 항목 -->
+  <rect x="150" y="158" width="46" height="46" rx="13" fill="#E07856"/>
+  <path d="M161 181 l9 9 16 -18" fill="none" stroke="#FFFFFF" stroke-width="8" stroke-linecap="round" stroke-linejoin="round"/>
+  <rect x="214" y="170" width="140" height="22" rx="11" fill="#EEE4D3"/>
+
+  <!-- 2행: 체크된 항목 -->
+  <rect x="150" y="233" width="46" height="46" rx="13" fill="#E07856"/>
+  <path d="M161 256 l9 9 16 -18" fill="none" stroke="#FFFFFF" stroke-width="8" stroke-linecap="round" stroke-linejoin="round"/>
+  <rect x="214" y="245" width="140" height="22" rx="11" fill="#EEE4D3"/>
+
+  <!-- 3행: 미완료 항목 (빈 체크박스) -->
+  <rect x="152" y="310" width="42" height="42" rx="12" fill="#FFFFFF" stroke="#E2D6C2" stroke-width="6"/>
+  <rect x="214" y="320" width="110" height="22" rx="11" fill="#F0E8DA"/>
+</svg>
