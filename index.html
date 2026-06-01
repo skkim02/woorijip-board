@@ -222,9 +222,9 @@
     await loadRequests();
   }
 
-  // U: "완료"
+  // U: "완료" (처리한 사람을 assignee 에 기록 → 알림 받는 사람 판단에 사용)
   async function completeRequest(id) {
-    const { error } = await db.from('requests').update({ status: '완료' }).eq('id', id);
+    const { error } = await db.from('requests').update({ status: '완료', assignee: currentUser }).eq('id', id);
     if (error) return showError(error);
     await loadRequests();
   }
@@ -450,20 +450,20 @@
     setTimeout(remove, 5000);
   }
 
-  // 새 요청이 들어왔을 때 호출
-  function notifyNewRequest(r) {
-    const who = r.requester || '누군가';
-    showToast(`${who}님의 새 요청`, `${r.item} — 보드에 올라왔어요`);
+  // 공통 알림: 화면 팝업 + 소리 + (권한 있으면) 시스템 알림
+  function notify(title, desc, tag) {
+    showToast(title, desc);
     playDing();
     if ('Notification' in window && Notification.permission === 'granted') {
       try {
-        new Notification('우리집 보드 · 새 요청', {
-          body: `${who}: ${r.item}`,
-          icon: 'icons/icon-192.png',
-          tag: 'request-' + r.id
-        });
+        new Notification(title, { body: desc, icon: 'icons/icon-192.png', tag });
       } catch (e) {}
     }
+  }
+
+  function notifyNewRequest(r) {
+    const who = r.requester || '누군가';
+    notify(`${who}님의 새 요청`, `${r.item} — 보드에 올라왔어요`, 'request-' + r.id);
   }
 
   // 첫 터치/클릭 때 알림 권한 요청 + 소리 잠금 해제 (브라우저 자동재생 정책 때문)
@@ -576,9 +576,17 @@
   // → 와이프가 올리는 순간, 새로고침 없이 남편 화면에도 뜬다.
   db.channel('requests-changes')
     .on('postgres_changes', { event: '*', schema: 'public', table: 'requests' }, (payload) => {
-      // 새 요청(INSERT)이고, 내가 올린 게 아니라 상대가 올린 거면 알림을 울린다.
-      if (payload.eventType === 'INSERT' && payload.new && payload.new.requester !== currentUser) {
-        notifyNewRequest(payload.new);
+      const r = payload.new;
+      if (payload.eventType === 'INSERT') {
+        // 새 요청 — 내가 올린 게 아니면 알림
+        if (r && r.requester !== currentUser) notifyNewRequest(r);
+      } else if (payload.eventType === 'UPDATE' && r) {
+        // 상태가 바뀌었을 때(맡음/완료) — 내가 한 동작이 아니면 알림
+        const prev = requests.find(x => x.id === r.id);
+        if (prev && prev.status !== r.status && r.assignee !== currentUser) {
+          if (r.status === '내가 맡음') notify(`${r.assignee}님이 맡았어요`, `${r.item}`, 'status-' + r.id);
+          else if (r.status === '완료')  notify(`${r.assignee}님이 완료했어요`, `${r.item}`, 'status-' + r.id);
+        }
       }
       loadRequests();
     })
