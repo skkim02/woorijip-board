@@ -371,6 +371,7 @@
       currentUser = b.dataset.user;
       document.querySelectorAll('.who button').forEach(x => x.classList.remove('on'));
       b.classList.add('on');
+      localStorage.setItem('whoami', currentUser);   // 이 기기에 '나'를 기억
       resaveSubscriptionIfAny();   // 내가 누구인지 바뀌면 푸시 받는 사람도 갱신
     };
   });
@@ -556,6 +557,16 @@
     refreshPushButton();
   } else {
     document.getElementById('pushBtn').style.display = 'none';
+  }
+
+  // 이 기기에 저장된 '나'를 복원 (앱을 다시 켜도 와이프/남편 선택 유지)
+  const savedWho = localStorage.getItem('whoami');
+  if (savedWho) {
+    currentUser = savedWho;
+    document.querySelectorAll('.who button').forEach(x => {
+      x.classList.toggle('on', x.dataset.user === savedWho);
+    });
+    resaveSubscriptionIfAny();   // 구독 정보의 받는 사람도 복원된 '나'에 맞춤
   }
 
   // 첫 실행: 데이터베이스에서 목록 불러오기
