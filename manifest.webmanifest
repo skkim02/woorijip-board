@@ -1,14 +1,18 @@
 {
+  "id": "/",
   "name": "우리집 보드",
   "short_name": "우리집",
-  "description": "우리집 할일·집안일 보드",
+  "description": "함께 사는 사람들과 집안일·심부름을 버튼으로 부탁하고 끝내는 보드",
+  "categories": ["productivity", "lifestyle"],
   "start_url": "./",
   "scope": "./",
   "display": "standalone",
+  "display_override": ["standalone", "minimal-ui"],
   "orientation": "portrait",
   "background_color": "#FBF4E9",
   "theme_color": "#E07856",
   "lang": "ko",
+  "dir": "ltr",
   "icons": [
     {
       "src": "icons/icon-192.png",

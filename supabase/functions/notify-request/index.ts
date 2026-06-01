@@ -19,11 +19,12 @@ const supabase = createClient(
   Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
 );
 
-// 특정 사람(actor)이 아닌 상대의 모든 구독으로 푸시를 보낸다.
-async function sendToOthers(actor: string, title: string, body: string, tag: string) {
+// 같은 그룹(group)에서 동작한 사람(actor)이 아닌 나머지 멤버의 구독으로만 푸시를 보낸다.
+async function sendToOthers(group: string, actor: string, title: string, body: string, tag: string) {
   const { data: subs, error } = await supabase
     .from('push_subscriptions')
     .select('*')
+    .eq('group_code', group)
     .neq('member', actor);
   if (error) { console.error('select error', error); return; }
 
@@ -54,9 +55,12 @@ Deno.serve(async (req) => {
   const { type, record, old_record } = body;
   if (!record || !record.item) return new Response('no record', { status: 200 });
 
+  const group = record.group_code ?? 'default';
+
   if (type === 'INSERT') {
     const requester = record.requester ?? '누군가';
     await sendToOthers(
+      group,
       requester,
       `${requester}님의 새 요청`,
       `${record.item} — 보드에 올라왔어요`,
@@ -69,9 +73,9 @@ Deno.serve(async (req) => {
     }
     const actor = record.assignee ?? '누군가';
     if (record.status === '내가 맡음') {
-      await sendToOthers(actor, `${actor}님이 맡았어요`, record.item, 'status-' + record.id);
+      await sendToOthers(group, actor, `${actor}님이 맡았어요`, record.item, 'status-' + record.id);
     } else if (record.status === '완료') {
-      await sendToOthers(actor, `${actor}님이 완료했어요`, record.item, 'status-' + record.id);
+      await sendToOthers(group, actor, `${actor}님이 완료했어요`, record.item, 'status-' + record.id);
     }
   }
 
