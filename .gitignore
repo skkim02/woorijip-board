@@ -1,0 +1,7 @@
+# 비밀값은 절대 커밋하지 않기
+.env
+.env.*
+*.vapid
+vapid*.json
+supabase/.temp/
+.DS_Store

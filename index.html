@@ -113,6 +113,11 @@
   .toast.out { animation: toastOut .25s ease forwards; }
   @keyframes toastIn { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: none; } }
   @keyframes toastOut { to { opacity: 0; transform: translateY(-10px); } }
+
+  /* 푸시 알림 켜기 버튼 */
+  .push-toggle { width: 100%; margin-top: 10px; border: 1px solid var(--line); background: var(--card);
+    color: var(--ink-soft); font-family: inherit; font-size: 14px; padding: 10px 0; border-radius: 12px; cursor: pointer; transition: all .15s; }
+  .push-toggle.on { background: var(--done-bg); color: var(--done-fg); border-color: transparent; }
 </style>
 </head>
 <body>
@@ -126,6 +131,7 @@
       <button data-user="와이프" class="on">🙋‍♀️ 와이프</button>
       <button data-user="남편">🙋‍♂️ 남편</button>
     </div>
+    <button id="pushBtn" class="push-toggle">🔔 푸시 알림 켜기</button>
   </header>
 
   <p class="section-label">자주 쓰는 요청 (누르면 보드에 올라가요)</p>
@@ -365,6 +371,7 @@
       currentUser = b.dataset.user;
       document.querySelectorAll('.who button').forEach(x => x.classList.remove('on'));
       b.classList.add('on');
+      resaveSubscriptionIfAny();   // 내가 누구인지 바뀌면 푸시 받는 사람도 갱신
     };
   });
 
@@ -466,6 +473,90 @@
       document.removeEventListener(ev, once);
     }, { passive: true })
   );
+
+  /* =========================================================
+     6) 본격 푸시 (앱을 닫아도 알림) — 서비스워커 + Web Push
+        구독 정보를 push_subscriptions 표에 저장하면, 새 요청이 올라올 때
+        서버(Edge Function)가 상대방 기기로 푸시를 보낸다.
+     ========================================================= */
+  const PUSH_PUBLIC_KEY = 'BOXhnrggGfxOEj9tlmVfSUzertlcxQ3swW-HOqKAW-qh8aWvwCRR4kaHRV0mcc3KOpeZk7gklDaSQxik5hn_C9g';
+
+  function urlBase64ToUint8Array(base64String) {
+    const padding = '='.repeat((4 - base64String.length % 4) % 4);
+    const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
+    const raw = atob(base64);
+    return Uint8Array.from([...raw].map(c => c.charCodeAt(0)));
+  }
+
+  const pushSupported = 'serviceWorker' in navigator && 'PushManager' in window;
+
+  // 구독 정보를 DB 에 저장 (endpoint 기준으로 덮어쓰기)
+  async function saveSubscription(sub) {
+    const j = sub.toJSON();
+    await db.from('push_subscriptions').upsert({
+      endpoint: sub.endpoint,
+      member: currentUser,
+      p256dh: j.keys.p256dh,
+      auth: j.keys.auth,
+      updated_at: new Date().toISOString()
+    }, { onConflict: 'endpoint' });
+  }
+
+  // 푸시 켜기 (사용자가 버튼을 눌렀을 때 — iOS는 반드시 버튼 클릭이 필요)
+  async function enablePush() {
+    if (!pushSupported) {
+      alert('이 브라우저는 푸시를 지원하지 않아요.\niPhone은 Safari에서 "홈 화면에 추가"한 앱으로 열어주세요.');
+      return;
+    }
+    try {
+      const reg = await navigator.serviceWorker.register('sw.js');
+      await navigator.serviceWorker.ready;
+      const perm = await Notification.requestPermission();
+      if (perm !== 'granted') { alert('알림 권한이 필요해요. 설정에서 허용해 주세요.'); return; }
+      let sub = await reg.pushManager.getSubscription();
+      if (!sub) {
+        sub = await reg.pushManager.subscribe({
+          userVisibleOnly: true,
+          applicationServerKey: urlBase64ToUint8Array(PUSH_PUBLIC_KEY)
+        });
+      }
+      await saveSubscription(sub);
+      await refreshPushButton();
+      showToast('푸시 알림 켜짐', '이제 앱을 닫아도 새 요청 알림이 와요');
+    } catch (e) {
+      console.error(e);
+      alert('푸시 설정 중 문제가 생겼어요: ' + (e.message || e));
+    }
+  }
+
+  // 버튼 상태(켜짐/꺼짐) 갱신
+  async function refreshPushButton() {
+    const btn = document.getElementById('pushBtn');
+    if (!pushSupported) { btn.style.display = 'none'; return; }
+    const reg = await navigator.serviceWorker.getRegistration();
+    const sub = reg ? await reg.pushManager.getSubscription() : null;
+    if (sub && Notification.permission === 'granted') {
+      btn.textContent = '🔔 푸시 알림 켜짐'; btn.classList.add('on');
+    } else {
+      btn.textContent = '🔔 푸시 알림 켜기'; btn.classList.remove('on');
+    }
+  }
+
+  // "누구"를 바꾸면, 이미 구독돼 있을 때 받는 사람 정보도 갱신
+  async function resaveSubscriptionIfAny() {
+    if (!pushSupported) return;
+    const reg = await navigator.serviceWorker.getRegistration();
+    const sub = reg ? await reg.pushManager.getSubscription() : null;
+    if (sub) await saveSubscription(sub);
+  }
+
+  document.getElementById('pushBtn').onclick = enablePush;
+  if (pushSupported) {
+    navigator.serviceWorker.register('sw.js').catch(() => {});
+    refreshPushButton();
+  } else {
+    document.getElementById('pushBtn').style.display = 'none';
+  }
 
   // 첫 실행: 데이터베이스에서 목록 불러오기
   loadRequests();
